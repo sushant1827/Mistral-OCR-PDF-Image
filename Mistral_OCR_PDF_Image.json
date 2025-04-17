@@ -1,0 +1,545 @@
+{
+  "name": "Mistral OCR - PDF | Image",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "baae2642-6a0c-4811-b2e2-72816b0cf984",
+      "name": "When clicking ‘Test workflow’",
+      "type": "n8n-nodes-base.manualTrigger",
+      "position": [
+        500,
+        420
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1240,
+        560
+      ],
+      "id": "2bd9c2d2-3c5c-4779-bf52-1a45dcbf9b7b",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "sRMLrxWQWlWmovuJ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "formTitle": "Invoice",
+        "formDescription": "Please upload your invoice",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "Invoice",
+              "fieldType": "file",
+              "multipleFiles": false,
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        500,
+        20
+      ],
+      "id": "80f8ee23-ab47-44e4-bac0-fcac0406eacf",
+      "name": "On form submission",
+      "webhookId": "d78142e6-c083-41ab-9201-5b74fe2e43a0"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "1eb5f18b-eb06-48df-8491-d60de75b4855",
+              "name": "url",
+              "type": "string",
+              "value": "=https://preview.redd.it/gst-on-food-v0-w63d0gb0f2jd1.png?auto=webp&s=d6bd643d6659dc3a13942ff085ec32f872397b28"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "9931cfbe-3be1-40f8-a160-5eaefe0da181",
+      "name": "Image URL",
+      "type": "n8n-nodes-base.set",
+      "position": [
+        720,
+        420
+      ],
+      "typeVersion": 3.4,
+      "alwaysOutputData": false
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.mistral.ai/v1/files",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "multipart-form-data",
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "purpose",
+              "value": "ocr"
+            },
+            {
+              "parameterType": "formBinaryData",
+              "name": "file",
+              "inputDataFieldName": "Invoice"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        720,
+        20
+      ],
+      "id": "d2fb009a-98ef-4319-a43c-034ddedb3ebe",
+      "name": "Upload PDF to Mistral",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "lXkwUg3Ey1HzTPz4",
+          "name": "Mistral"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "url": "=https://api.mistral.ai/v1/files/{{ $json.id }}/url",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "expiry",
+              "value": "24"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        940,
+        20
+      ],
+      "id": "4b883e60-25f8-436d-928a-b45f33c57307",
+      "name": "Get Signed URL",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "lXkwUg3Ey1HzTPz4",
+          "name": "Mistral"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.mistral.ai/v1/ocr",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"mistral-ocr-latest\",\n  \"document\": {\n    \"type\": \"document_url\",\n    \"document_url\": \"{{ $json.url }}\"\n  },\n  \"include_image_base64\": true\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1160,
+        20
+      ],
+      "id": "42794feb-b95c-4740-ab18-b8bf7add5117",
+      "name": "HTTP Request",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "lXkwUg3Ey1HzTPz4",
+          "name": "Mistral"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.pages[0].markdown }}\n{{ $json.pages[1].markdown }}\n{{ $json.pages[2].markdown }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "Invoice Number",
+              "description": "Invoice number"
+            },
+            {
+              "name": "Date",
+              "type": "date",
+              "description": "Date of the invoice"
+            },
+            {
+              "name": "Gross Amount",
+              "description": "Gross amount of the invoice"
+            },
+            {
+              "name": "Customer ID",
+              "description": "Customer number as per invoice "
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1,
+      "position": [
+        1380,
+        -80
+      ],
+      "id": "c5e83f18-5119-4249-844e-f953f1a9756a",
+      "name": "Get Invoice Info"
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1yv1UazqRY__m7ofl1CxpY4AgHdt9o7FslMklqaExu3w",
+          "mode": "list",
+          "cachedResultName": "Invoice Details",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yv1UazqRY__m7ofl1CxpY4AgHdt9o7FslMklqaExu3w/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Sheet1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1yv1UazqRY__m7ofl1CxpY4AgHdt9o7FslMklqaExu3w/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Customer ID": "12345",
+            "Invoice Number": "={{ $json.output['Invoice Number'] }}",
+            "Date": "={{ $json.output.Date }}",
+            "Gross Amount": "={{ $json.output['Gross Amount'] }}"
+          },
+          "matchingColumns": [
+            "Customer ID"
+          ],
+          "schema": [
+            {
+              "id": "Customer ID",
+              "displayName": "Customer ID",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Invoice Number",
+              "displayName": "Invoice Number",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "Date",
+              "displayName": "Date",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "Gross Amount",
+              "displayName": "Gross Amount",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1760,
+        20
+      ],
+      "id": "8543cc8d-9438-4cd1-b64d-7a21fd75aafe",
+      "name": "Add to Invoice Sheet",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "UpU05lyCbVLYPGRx",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1480,
+        140
+      ],
+      "id": "7b275e44-e5a7-4330-87cc-6ea72a97f5af",
+      "name": "Talk to OpenAI Chat",
+      "credentials": {
+        "openAiApi": {
+          "id": "sRMLrxWQWlWmovuJ",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.mistral.ai/v1/ocr",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"model\": \"mistral-ocr-latest\",\n  \"document\": {\n    \"type\": \"image_url\",\n    \"image_url\": \"{{ $json.url }}\"\n  }\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        940,
+        420
+      ],
+      "id": "7c7e73a2-5e49-4b4a-9ecc-003ee70ccb36",
+      "name": "Upload Image to Mistral",
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "lXkwUg3Ey1HzTPz4",
+          "name": "Mistral"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "text": "={{ $json.pages[0].markdown }}",
+        "attributes": {
+          "attributes": [
+            {
+              "name": "Date",
+              "type": "date",
+              "description": "Date of the receipt"
+            },
+            {
+              "name": "Total Bill Amount",
+              "type": "number",
+              "description": "Total Bill Amount mentioned in the receipt"
+            },
+            {
+              "name": "Restaurant Name",
+              "description": "Name of the restaurant"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.informationExtractor",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        340
+      ],
+      "id": "2da44bb7-c8ed-490d-a28d-62f4735cbe5f",
+      "name": "Get Image Information"
+    },
+    {
+      "parameters": {
+        "content": "## Extract PDF info using Mistral OCR\n",
+        "height": 360,
+        "width": 1520,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        440,
+        -100
+      ],
+      "typeVersion": 1,
+      "id": "989f13dc-4959-4d3f-b244-4af943205fda",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "content": "## Extract Image info using Mistral OCR\n",
+        "height": 380,
+        "width": 1080
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        440,
+        300
+      ],
+      "typeVersion": 1,
+      "id": "075d3bc6-0764-4454-ab40-1b2675363370",
+      "name": "Sticky Note1"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Image URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Get Image Information",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image URL": {
+      "main": [
+        [
+          {
+            "node": "Upload Image to Mistral",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "Upload PDF to Mistral",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload PDF to Mistral": {
+      "main": [
+        [
+          {
+            "node": "Get Signed URL",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Signed URL": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Get Invoice Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Invoice Info": {
+      "main": [
+        [
+          {
+            "node": "Add to Invoice Sheet",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Talk to OpenAI Chat": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Get Invoice Info",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Upload Image to Mistral": {
+      "main": [
+        [
+          {
+            "node": "Get Image Information",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3fa91135-89c7-46a2-8573-8a096c7e1f6d",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "def649484dbfa111196dbfe9e5bababd4b32b59eb2cc040596179b822337afe5"
+  },
+  "id": "XI2vCxnErUaEj5RL",
+  "tags": []
+}
